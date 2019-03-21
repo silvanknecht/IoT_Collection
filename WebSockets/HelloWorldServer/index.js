@@ -1,0 +1,73 @@
+const WebSocket = require('ws');
+const express = require('express');
+const app = express();
+const path = require('path');
+
+/* HTTP SERVER */
+let portnumHTTP = "3000";
+
+// middlewares
+app.use(express.json());
+app.use(express.urlencoded({
+  extended: true
+}));
+
+app.use(express.static('public'));
+
+// index
+app.get('/',function(req,res){
+    res.sendFile(path.join(__dirname+'/index.html'));
+  });
+
+  // add the router
+app.listen(process.env.port || portnumHTTP);
+console.log(`Running at Port ${portnumHTTP}`);
+
+
+/* Websocket Server */
+var portnumWSS = "8080";
+
+const wss = new WebSocket.Server({ port: portnumWSS });
+console.log("Websocket created on port " + portnumWSS);
+
+wss.on('connection', onConnected.bind(wss));
+
+var TalkCount = 0;
+const TalkLimit = 5;
+
+function onConnected(socket, request) {
+    //console.log(this);
+    /*    console.log("connected:");
+        console.log(socket);
+        console.log("request:");
+        console.log(request);*/
+    socket.on('message', onMessage.bind(socket));
+    socket.on("close", onClosed.bind(socket));
+    var me = this.address();
+    console.log("Connection" + socket._socket.remoteAddress + " -> " + me.address + ":" + me.port);
+    setTimeout(sendScheduled.bind(socket), 1500);
+};
+
+function onMessage(message) {
+    console.log("Received: '" + message + "'");
+    this.send("Echo: " + message);
+};
+
+function onClosed() {
+    console.log("Closed connection to " + this._socket.remoteAddress);
+};
+
+function sendScheduled() {
+    if (!this) {
+        return;
+    }
+    if (this.readyState!=this.OPEN) {
+        return;
+    }
+    let randomnum = Math.floor(Math.random() * (41 - 40 + 1)) + 41;
+    let dezimal = Math.random().toFixed(2);
+    let value = Number(randomnum)+Number(dezimal);
+    this.send(JSON.stringify({"sensor": "piTemperatur","value": value}));
+    console.log("Sent to " + this._socket.remoteAddress + ": " + value);
+    setTimeout(sendScheduled.bind(this), 1000);
+};
